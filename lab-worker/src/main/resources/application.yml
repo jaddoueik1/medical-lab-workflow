@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+zeebe:
+  client:
+    broker:
+      contactpoint: ${ZEEBE_CLIENT_BROKER_CONTACTPOINT:127.0.0.1:26500}
+
+openai:
+  apiBaseUrl: https://api.openai.com/v1
+  model: ${OPENAI_MODEL:gpt-5-mini}
+  timeoutSec: 15
+  maxRetries: 2

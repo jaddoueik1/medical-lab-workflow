@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  targetNamespace="http://example.com/lab">
+  <bpmn:message id="Message_WhatsAppIncoming" name="whatsapp_incoming" />
+  <bpmn:process id="LabCallCenterProcess" name="Lab Call-Center Conversation & Appointment" isExecutable="true">
+
+    <bpmn:startEvent id="StartEvent" name="Incoming Chat (Message)">
+      <bpmn:messageEventDefinition messageRef="Message_WhatsAppIncoming" />
+      <bpmn:outgoing>Flow_IntentDetect</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="IntentDetection" name="Detect Intent (GPT)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="ai-intent-detection" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_IntentDetect</bpmn:incoming>
+      <bpmn:outgoing>Flow_RouteByIntent</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="RouteByIntent" name="Route by Intent">
+      <bpmn:incoming>Flow_RouteByIntent</bpmn:incoming>
+      <bpmn:outgoing>Flow_Book</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Results</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Other</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- BOOK branch -->
+    <bpmn:sequenceFlow id="Flow_Book" sourceRef="RouteByIntent" targetRef="CollectBookingInfo">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${intent == "BOOK_APPOINTMENT"}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:serviceTask id="CollectBookingInfo" name="Collect / Confirm Booking Info">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="collect-booking-info" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Book</bpmn:incoming>
+      <bpmn:outgoing>Flow_CheckAvailability</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="CheckAvailability" name="Check Availability">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="check-availability" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_CheckAvailability</bpmn:incoming>
+      <bpmn:outgoing>Flow_CreateUserTask</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="LabBookingUserTask" name="Confirm &amp; Book Appointment (Lab Team)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="human-booking" />
+        <zeebe:assignmentDefinition candidateGroups="lab_team" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_CreateUserTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_AfterUserTask</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="FinalizeBooking" name="Finalize Booking (Reserve Slot)">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="finalize-booking" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_AfterUserTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_SendConfirmation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="SendConfirmation" name="Send Booking Confirmation">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-whatsapp" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_SendConfirmation</bpmn:incoming>
+      <bpmn:outgoing>Flow_EndA</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- RESULTS branch -->
+    <bpmn:sequenceFlow id="Flow_Results" sourceRef="RouteByIntent" targetRef="CollectResultsInfo">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${intent == "REQUEST_RESULTS"}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:serviceTask id="CollectResultsInfo" name="Collect / Confirm Identity for Results">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="collect-results-info" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Results</bpmn:incoming>
+      <bpmn:outgoing>Flow_VerifyIdentity</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="VerifyIdentity" name="Verify Identity">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="verify-identity" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_VerifyIdentity</bpmn:incoming>
+      <bpmn:outgoing>Flow_FetchResults</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="FetchResults" name="Fetch Results">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="fetch-results" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_FetchResults</bpmn:incoming>
+      <bpmn:outgoing>Flow_SendResults</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="SendResults" name="Send Results to Customer">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-whatsapp" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_SendResults</bpmn:incoming>
+      <bpmn:outgoing>Flow_EndB</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- OTHER / fallback -->
+    <bpmn:sequenceFlow id="Flow_Other" sourceRef="RouteByIntent" targetRef="SendFallback">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${intent == "OTHER"}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:serviceTask id="SendFallback" name="Send Fallback / FAQ">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-whatsapp" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Other</bpmn:incoming>
+      <bpmn:outgoing>Flow_EndC</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndA" name="End (Booking)">
+      <bpmn:incoming>Flow_EndA</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndB" name="End (Results)">
+      <bpmn:incoming>Flow_EndB</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndC" name="End (Other)">
+      <bpmn:incoming>Flow_EndC</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Flows -->
+    <bpmn:sequenceFlow id="Flow_IntentDetect" sourceRef="StartEvent" targetRef="IntentDetection" />
+    <bpmn:sequenceFlow id="Flow_RouteByIntent" sourceRef="IntentDetection" targetRef="RouteByIntent" />
+    <bpmn:sequenceFlow id="Flow_CheckAvailability" sourceRef="CollectBookingInfo" targetRef="CheckAvailability" />
+    <bpmn:sequenceFlow id="Flow_CreateUserTask" sourceRef="CheckAvailability" targetRef="LabBookingUserTask" />
+    <bpmn:sequenceFlow id="Flow_AfterUserTask" sourceRef="LabBookingUserTask" targetRef="FinalizeBooking" />
+    <bpmn:sequenceFlow id="Flow_SendConfirmation" sourceRef="FinalizeBooking" targetRef="SendConfirmation" />
+    <bpmn:sequenceFlow id="Flow_VerifyIdentity" sourceRef="CollectResultsInfo" targetRef="VerifyIdentity" />
+    <bpmn:sequenceFlow id="Flow_FetchResults" sourceRef="VerifyIdentity" targetRef="FetchResults" />
+    <bpmn:sequenceFlow id="Flow_SendResults" sourceRef="FetchResults" targetRef="SendResults" />
+    <bpmn:sequenceFlow id="Flow_EndA" sourceRef="SendConfirmation" targetRef="EndA" />
+    <bpmn:sequenceFlow id="Flow_EndB" sourceRef="SendResults" targetRef="EndB" />
+    <bpmn:sequenceFlow id="Flow_EndC" sourceRef="SendFallback" targetRef="EndC" />
+
+  </bpmn:process>
+</bpmn:definitions>

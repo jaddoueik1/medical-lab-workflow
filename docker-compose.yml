@@ -1,0 +1,77 @@
+version: '3.8'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSf http://localhost:9200/ || exit 1"]
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  zeebe:
+    image: camunda/zeebe:8.3.0
+    environment:
+      - ZEEBE_LOG_LEVEL=info
+      - ZEEBE_BROKER_NETWORK_HOST=0.0.0.0
+      - ZEEBE_BROKER_GATEWAY_NETWORK_HOST=0.0.0.0
+      - ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINT=zeebe
+      - ZEEBE_BROKER_NODEID=0
+      - ZEEBE_BROKER_CLUSTER_SIZE=1
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_CLASSNAME=io.camunda.zeebe.exporter.ElasticsearchExporter
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS={"url":"http://elasticsearch:9200"}
+    ports:
+      - "26500:26500"
+      - "9600:9600"
+    depends_on:
+      - elasticsearch
+
+  operate:
+    image: camunda/operate:8.3.0
+    environment:
+      - OPERATE_ZEEBE_GATEWAY=zeebe:26500
+      - OPERATE_AUTHENTICATION_ENABLED=false
+    depends_on:
+      - zeebe
+      - elasticsearch
+    ports:
+      - "8081:8080"
+
+  tasklist:
+    image: camunda/tasklist:8.3.0
+    environment:
+      - TASKLIST_ZEEBE_GATEWAY=zeebe:26500
+      - TASKLIST_AUTHENTICATION_ENABLED=false
+    depends_on:
+      - zeebe
+    ports:
+      - "8082:8080"
+
+  lab-worker:
+    build:
+      context: ./lab-worker
+      dockerfile: Dockerfile
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+      - ZEEBE_CLIENT_BROKER_CONTACTPOINT=zeebe:26500
+      - OPENAI_API_KEY=replace_me
+      - OPENAI_MODEL=gpt-5-mini
+      - TWILIO_ACCOUNT_SID=your_twilio_sid
+      - TWILIO_AUTH_TOKEN=your_twilio_token
+      - TWILIO_WHATSAPP_FROM=whatsapp:+1415XXXXXXX
+      - LAB_TEAM_GROUP=lab_team
+    depends_on:
+      - zeebe
+    ports:
+      - "8080:8080"
+
+volumes:
+  esdata:
