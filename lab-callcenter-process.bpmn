@@ -7,17 +7,18 @@
                   xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
                   id="Definitions_1"
                   targetNamespace="http://example.com/lab">
+
+  <!-- Declare the message used by the Start Event -->
   <bpmn:message id="Message_WhatsAppIncoming" name="whatsapp_incoming" />
 
   <bpmn:process id="LabCallCenterProcess" name="Lab Call-Center Conversation &amp; Appointment" isExecutable="true">
 
-    <!-- Start: Message Start Event -->
+    <!-- Start Event: messageEventDefinition MUST come before <outgoing> -->
     <bpmn:startEvent id="StartEvent_Message" name="Incoming Chat">
       <bpmn:messageEventDefinition messageRef="Message_WhatsAppIncoming"/>
       <bpmn:outgoing>Flow_Start_To_AI</bpmn:outgoing>
     </bpmn:startEvent>
 
-    <!-- AI Intent Detection -->
     <bpmn:serviceTask id="Task_AIIntent" name="Detect Intent (GPT)">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="ai-intent-detection" />
@@ -26,7 +27,6 @@
       <bpmn:outgoing>Flow_AI_To_Gateway</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <!-- Route by Intent -->
     <bpmn:exclusiveGateway id="Gateway_ByIntent" name="Route by Intent">
       <bpmn:incoming>Flow_AI_To_Gateway</bpmn:incoming>
       <bpmn:outgoing>Flow_To_Book</bpmn:outgoing>
@@ -34,7 +34,7 @@
       <bpmn:outgoing>Flow_To_Other</bpmn:outgoing>
     </bpmn:exclusiveGateway>
 
-    <!-- BOOK path -->
+    <!-- BOOK -->
     <bpmn:sequenceFlow id="Flow_To_Book" sourceRef="Gateway_ByIntent" targetRef="Task_CollectBooking">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${intent == "BOOK_APPOINTMENT"}]]></bpmn:conditionExpression>
     </bpmn:sequenceFlow>
@@ -79,7 +79,7 @@
       <bpmn:outgoing>Flow_To_EndA</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <!-- RESULTS path -->
+    <!-- RESULTS -->
     <bpmn:sequenceFlow id="Flow_To_Results" sourceRef="Gateway_ByIntent" targetRef="Task_CollectResults">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${intent == "REQUEST_RESULTS"}]]></bpmn:conditionExpression>
     </bpmn:sequenceFlow>
@@ -116,7 +116,7 @@
       <bpmn:outgoing>Flow_To_EndB</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <!-- OTHER path -->
+    <!-- OTHER -->
     <bpmn:sequenceFlow id="Flow_To_Other" sourceRef="Gateway_ByIntent" targetRef="Task_SendFallback">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${intent == "OTHER"}]]></bpmn:conditionExpression>
     </bpmn:sequenceFlow>
@@ -129,146 +129,68 @@
       <bpmn:outgoing>Flow_To_EndC</bpmn:outgoing>
     </bpmn:serviceTask>
 
-    <!-- End events -->
-    <bpmn:endEvent id="EndEvent_A" name="End (Booking)">
-      <bpmn:incoming>Flow_To_EndA</bpmn:incoming>
-    </bpmn:endEvent>
-    <bpmn:endEvent id="EndEvent_B" name="End (Results)">
-      <bpmn:incoming>Flow_To_EndB</bpmn:incoming>
-    </bpmn:endEvent>
-    <bpmn:endEvent id="EndEvent_C" name="End (Other)">
-      <bpmn:incoming>Flow_To_EndC</bpmn:incoming>
-    </bpmn:endEvent>
-
-    <!-- Flows among activities -->
+    <!-- Flows -->
     <bpmn:sequenceFlow id="Flow_Start_To_AI" sourceRef="StartEvent_Message" targetRef="Task_AIIntent"/>
     <bpmn:sequenceFlow id="Flow_AI_To_Gateway" sourceRef="Task_AIIntent" targetRef="Gateway_ByIntent"/>
-
     <bpmn:sequenceFlow id="Flow_Book_To_CheckAvail" sourceRef="Task_CollectBooking" targetRef="Task_CheckAvail"/>
     <bpmn:sequenceFlow id="Flow_Check_To_UserTask" sourceRef="Task_CheckAvail" targetRef="Task_User_Book"/>
     <bpmn:sequenceFlow id="Flow_UserTask_To_Finalize" sourceRef="Task_User_Book" targetRef="Task_FinalizeBook"/>
     <bpmn:sequenceFlow id="Flow_Finalize_To_SendConfirm" sourceRef="Task_FinalizeBook" targetRef="Task_SendConfirm"/>
     <bpmn:sequenceFlow id="Flow_To_EndA" sourceRef="Task_SendConfirm" targetRef="EndEvent_A"/>
-
     <bpmn:sequenceFlow id="Flow_Results_To_Verify" sourceRef="Task_CollectResults" targetRef="Task_VerifyIdentity"/>
     <bpmn:sequenceFlow id="Flow_Verify_To_Fetch" sourceRef="Task_VerifyIdentity" targetRef="Task_FetchResults"/>
     <bpmn:sequenceFlow id="Flow_Fetch_To_SendResults" sourceRef="Task_FetchResults" targetRef="Task_SendResults"/>
     <bpmn:sequenceFlow id="Flow_To_EndB" sourceRef="Task_SendResults" targetRef="EndEvent_B"/>
-
     <bpmn:sequenceFlow id="Flow_To_EndC" sourceRef="Task_SendFallback" targetRef="EndEvent_C"/>
+
+    <!-- End events -->
+    <bpmn:endEvent id="EndEvent_A" name="End (Booking)"/>
+    <bpmn:endEvent id="EndEvent_B" name="End (Results)"/>
+    <bpmn:endEvent id="EndEvent_C" name="End (Other)"/>
 
   </bpmn:process>
 
-  <!-- Simple DI for modeler rendering -->
+  <!-- Minimal DI so it renders in Modeler -->
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="LabCallCenterProcess">
-      <bpmndi:BPMNShape id="DI_Start" bpmnElement="StartEvent_Message">
-        <dc:Bounds x="120" y="160" width="36" height="36"/>
-      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Start" bpmnElement="StartEvent_Message"><dc:Bounds x="120" y="160" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_AI" bpmnElement="Task_AIIntent"><dc:Bounds x="200" y="140" width="140" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_GW" bpmnElement="Gateway_ByIntent"><dc:Bounds x="360" y="155" width="50" height="50"/></bpmndi:BPMNShape>
 
-      <bpmndi:BPMNShape id="DI_AI" bpmnElement="Task_AIIntent">
-        <dc:Bounds x="200" y="140" width="140" height="80"/>
-      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CollectBooking" bpmnElement="Task_CollectBooking"><dc:Bounds x="460" y="40" width="180" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CheckAvail" bpmnElement="Task_CheckAvail"><dc:Bounds x="660" y="40" width="160" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_UserBook" bpmnElement="Task_User_Book"><dc:Bounds x="840" y="40" width="200" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Finalize" bpmnElement="Task_FinalizeBook"><dc:Bounds x="1060" y="40" width="190" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_SendConfirm" bpmnElement="Task_SendConfirm"><dc:Bounds x="1270" y="40" width="200" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_EndA" bpmnElement="EndEvent_A"><dc:Bounds x="1500" y="62" width="36" height="36"/></bpmndi:BPMNShape>
 
-      <bpmndi:BPMNShape id="DI_GW" bpmnElement="Gateway_ByIntent" isMarkerVisible="true">
-        <dc:Bounds x="380" y="155" width="50" height="50"/>
-      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CollectResults" bpmnElement="Task_CollectResults"><dc:Bounds x="460" y="140" width="220" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Verify" bpmnElement="Task_VerifyIdentity"><dc:Bounds x="700" y="140" width="180" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Fetch" bpmnElement="Task_FetchResults"><dc:Bounds x="900" y="140" width="180" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_SendResults" bpmnElement="Task_SendResults"><dc:Bounds x="1100" y="140" width="200" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_EndB" bpmnElement="EndEvent_B"><dc:Bounds x="1320" y="162" width="36" height="36"/></bpmndi:BPMNShape>
 
-      <!-- BOOK lane elements -->
-      <bpmndi:BPMNShape id="DI_CollectBooking" bpmnElement="Task_CollectBooking">
-        <dc:Bounds x="480" y="40" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_CheckAvail" bpmnElement="Task_CheckAvail">
-        <dc:Bounds x="690" y="40" width="160" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_UserBook" bpmnElement="Task_User_Book">
-        <dc:Bounds x="880" y="40" width="200" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_Finalize" bpmnElement="Task_FinalizeBook">
-        <dc:Bounds x="1110" y="40" width="190" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_SendConfirm" bpmnElement="Task_SendConfirm">
-        <dc:Bounds x="1330" y="40" width="200" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_EndA" bpmnElement="EndEvent_A">
-        <dc:Bounds x="1560" y="62" width="36" height="36"/>
-      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_SendFallback" bpmnElement="Task_SendFallback"><dc:Bounds x="460" y="240" width="220" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_EndC" bpmnElement="EndEvent_C"><dc:Bounds x="700" y="262" width="36" height="36"/></bpmndi:BPMNShape>
 
-      <!-- RESULTS lane elements -->
-      <bpmndi:BPMNShape id="DI_CollectResults" bpmnElement="Task_CollectResults">
-        <dc:Bounds x="480" y="140" width="220" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_Verify" bpmnElement="Task_VerifyIdentity">
-        <dc:Bounds x="730" y="140" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_Fetch" bpmnElement="Task_FetchResults">
-        <dc:Bounds x="940" y="140" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_SendResults" bpmnElement="Task_SendResults">
-        <dc:Bounds x="1150" y="140" width="200" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_EndB" bpmnElement="EndEvent_B">
-        <dc:Bounds x="1380" y="162" width="36" height="36"/>
-      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="DI_Flow_Start_To_AI" bpmnElement="Flow_Start_To_AI"><di:waypoint x="156" y="178"/><di:waypoint x="200" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_AI_To_Gateway" bpmnElement="Flow_AI_To_Gateway"><di:waypoint x="340" y="180"/><di:waypoint x="360" y="180"/></bpmndi:BPMNEdge>
 
-      <!-- OTHER lane elements -->
-      <bpmndi:BPMNShape id="DI_SendFallback" bpmnElement="Task_SendFallback">
-        <dc:Bounds x="480" y="240" width="220" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_EndC" bpmnElement="EndEvent_C">
-        <dc:Bounds x="720" y="262" width="36" height="36"/>
-      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="DI_Flow_To_Book" bpmnElement="Flow_To_Book"><di:waypoint x="410" y="180"/><di:waypoint x="460" y="80"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_Book_To_CheckAvail" bpmnElement="Flow_Book_To_CheckAvail"><di:waypoint x="640" y="80"/><di:waypoint x="660" y="80"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_Check_To_UserTask" bpmnElement="Flow_Check_To_UserTask"><di:waypoint x="820" y="80"/><di:waypoint x="840" y="80"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_UserTask_To_Finalize" bpmnElement="Flow_UserTask_To_Finalize"><di:waypoint x="1040" y="80"/><di:waypoint x="1060" y="80"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_Finalize_To_SendConfirm" bpmnElement="Flow_Finalize_To_SendConfirm"><di:waypoint x="1250" y="80"/><di:waypoint x="1270" y="80"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_To_EndA" bpmnElement="Flow_To_EndA"><di:waypoint x="1470" y="80"/><di:waypoint x="1500" y="80"/></bpmndi:BPMNEdge>
 
-      <!-- Edges -->
-      <bpmndi:BPMNEdge id="DI_Flow_Start_To_AI" bpmnElement="Flow_Start_To_AI">
-        <di:waypoint x="156" y="178"/><di:waypoint x="200" y="180"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_AI_To_Gateway" bpmnElement="Flow_AI_To_Gateway">
-        <di:waypoint x="340" y="180"/><di:waypoint x="380" y="180"/>
-      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_To_Results" bpmnElement="Flow_To_Results"><di:waypoint x="410" y="180"/><di:waypoint x="460" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_Results_To_Verify" bpmnElement="Flow_Results_To_Verify"><di:waypoint x="680" y="180"/><di:waypoint x="700" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_Verify_To_Fetch" bpmnElement="Flow_Verify_To_Fetch"><di:waypoint x="880" y="180"/><di:waypoint x="900" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_Fetch_To_SendResults" bpmnElement="Flow_Fetch_To_SendResults"><di:waypoint x="1080" y="180"/><di:waypoint x="1100" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_To_EndB" bpmnElement="Flow_To_EndB"><di:waypoint x="1300" y="180"/><di:waypoint x="1320" y="180"/></bpmndi:BPMNEdge>
 
-      <bpmndi:BPMNEdge id="DI_Flow_To_Book" bpmnElement="Flow_To_Book">
-        <di:waypoint x="430" y="180"/><di:waypoint x="480" y="80"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_Book_To_CheckAvail" bpmnElement="Flow_Book_To_CheckAvail">
-        <di:waypoint x="660" y="80"/><di:waypoint x="690" y="80"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_Check_To_UserTask" bpmnElement="Flow_Check_To_UserTask">
-        <di:waypoint x="850" y="80"/><di:waypoint x="880" y="80"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_UserTask_To_Finalize" bpmnElement="Flow_UserTask_To_Finalize">
-        <di:waypoint x="1080" y="80"/><di:waypoint x="1110" y="80"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_Finalize_To_SendConfirm" bpmnElement="Flow_Finalize_To_SendConfirm">
-        <di:waypoint x="1300" y="80"/><di:waypoint x="1330" y="80"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_To_EndA" bpmnElement="Flow_To_EndA">
-        <di:waypoint x="1530" y="80"/><di:waypoint x="1560" y="80"/>
-      </bpmndi:BPMNEdge>
-
-      <bpmndi:BPMNEdge id="DI_Flow_To_Results" bpmnElement="Flow_To_Results">
-        <di:waypoint x="430" y="180"/><di:waypoint x="480" y="180"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_Results_To_Verify" bpmnElement="Flow_Results_To_Verify">
-        <di:waypoint x="700" y="180"/><di:waypoint x="730" y="180"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_Verify_To_Fetch" bpmnElement="Flow_Verify_To_Fetch">
-        <di:waypoint x="910" y="180"/><di:waypoint x="940" y="180"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_Fetch_To_SendResults" bpmnElement="Flow_Fetch_To_SendResults">
-        <di:waypoint x="1120" y="180"/><di:waypoint x="1150" y="180"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_To_EndB" bpmnElement="Flow_To_EndB">
-        <di:waypoint x="1350" y="180"/><di:waypoint x="1380" y="180"/>
-      </bpmndi:BPMNEdge>
-
-      <bpmndi:BPMNEdge id="DI_Flow_To_Other" bpmnElement="Flow_To_Other">
-        <di:waypoint x="430" y="180"/><di:waypoint x="480" y="280"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_To_EndC" bpmnElement="Flow_To_EndC">
-        <di:waypoint x="700" y="280"/><di:waypoint x="720" y="280"/>
-      </bpmndi:BPMNEdge>
-
+      <bpmndi:BPMNEdge id="DI_Flow_To_Other" bpmnElement="Flow_To_Other"><di:waypoint x="410" y="180"/><di:waypoint x="460" y="280"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_To_EndC" bpmnElement="Flow_To_EndC"><di:waypoint x="680" y="280"/><di:waypoint x="700" y="280"/></bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
