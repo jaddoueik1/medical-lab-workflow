@@ -82,32 +82,12 @@ public class AiIntentDetectionWorker {
       var msgs = mapper.createArrayNode();
       ObjectNode sys = mapper.createObjectNode();
       sys.put("role", "system");
-      String systemPrompt =
-          "You are an intent classifier for a medical lab chat assistant in Tyre, Lebanon.\\n" +
-          "Extract one of these intents:\\n" +
-          "  - BOOK_APPOINTMENT\\n" +
-          "  - REQUEST_RESULTS\\n" +
-          "  - OTHER\\n" +
-          "Also extract optional entities:\\n" +
-          "  - dob: ISO date (YYYY-MM-DD) if present\\n" +
-          "  - requestedSlotText: any date/time phrase the user mentioned (free text)\\n" +
-          "  - handoffToClinician: true iff the user explicitly asks to speak to a clinician/doctor.\\n" +
-          "Return STRICT JSON like:\\n" +
-          "{\\n" +
-          "  \\"intent\\": \\"BOOK_APPOINTMENT\\",\\n" +
-          "  \\"entities\\": {\\n" +
-          "    \\"dob\\": \\"1990-05-01\\",\\n" +
-          "    \\"requestedSlotText\\": \\"tomorrow morning\\",\\n" +
-          "    \\"handoffToClinician\\": false\\n" +
-          "  }\\n" +
-          "}\\n" +
-          "If something is missing, omit the key. Never include explanations.";
-      sys.put("content", systemPrompt);
+      sys.put("content", "You are an intent classifier for a medical lab chat in Tyre, Lebanon. Return STRICT JSON with fields: - intent: one of BOOK_APPOINTMENT, REQUEST_RESULTS, OTHER - entities: optional object with keys: dob (YYYY-MM-DD), requestedSlotText (free text), handoffToClinician (boolean) No commentary.");
       msgs.add(sys);
 
       ObjectNode user = mapper.createObjectNode();
       user.put("role", "user");
-      user.put("content", "User phone: " + phone + "\\nMessage: " + text);
+      user.put("content", "User phone: " + phone + "\nMessage: " + text);
       msgs.add(user);
 
       req.set("messages", msgs);
@@ -156,6 +136,7 @@ public class AiIntentDetectionWorker {
           return resp.body().string();
         }
         int code = resp.code();
+        String body = resp.body() != null ? resp.body().string() : "";
         if ((code == 429 || (code >= 500 && code < 600)) && attempt <= (retries + 1)) {
           long backoffMs = (long) Math.min(8000, Math.pow(2, attempt) * 250);
           Thread.sleep(backoffMs);
