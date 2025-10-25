@@ -39,7 +39,7 @@ public class AiIntentDetectionWorker {
       @Value("${openai.model}") String model,
       @Value("${openai.timeoutSec}") int timeoutSec,
       @Value("${openai.maxRetries}") int maxRetries,
-      @Value("${OPENAI_API_KEY:}") String apiKeyEnv
+      @Value("${OPENAI_API_KEY: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}") String apiKeyEnv
   ) {
     this.zeebeClient = zeebeClient;
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
@@ -56,10 +56,12 @@ public class AiIntentDetectionWorker {
         .handler(this::handle)
         .name("ai-intent-detection-worker")
         .open();
+    log.info("Adding worker: {}", worker);
     log.info("Started ai-intent-detection worker with model={}", model);
   }
 
   private void handle(JobClient client, ActivatedJob job) {
+    log.info("Processing job key={}", job.getKey());
     Map<String, Object> vars = job.getVariablesAsMap();
     String text = String.valueOf(vars.getOrDefault("messageText", ""));
     String phone = String.valueOf(vars.getOrDefault("phoneNumber", ""));

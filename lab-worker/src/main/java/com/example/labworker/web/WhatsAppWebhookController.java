@@ -58,6 +58,6 @@ public class WhatsAppWebhookController {
                 .send()
                 .join();
 
-        return ResponseEntity.ok("published");
+        return ResponseEntity.ok("Workflow started");
     }
 }
