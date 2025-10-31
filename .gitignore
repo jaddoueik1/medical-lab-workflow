@@ -1,0 +1,38 @@
+# === Environment & Secrets ===
+.env
+.env.local
+.env.*
+!.env.example   # keep example config if you want
+
+# === Maven / Gradle ===
+target/
+build/
+.gradle/
+mvnw.cmd
+mvnw
+
+# === IDEs ===
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+
+# === Logs & Temp ===
+logs/
+*.log
+*.tmp
+*.bak
+
+# === Java ===
+*.class
+hs_err_pid*
+replay_pid*
+
+# === Spring Boot ===
+/out/
+spring.log
