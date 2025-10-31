@@ -9,5 +9,6 @@ zeebe:
 openai:
   apiBaseUrl: https://api.openai.com/v1
   model: ${OPENAI_MODEL:gpt-5-mini}
-  timeoutSec: 15
+  timeoutSec: 30
   maxRetries: 2
+  apiKey: ${OPENAI_API_KEY} 
